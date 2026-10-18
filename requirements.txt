@@ -1,16 +1,30 @@
-langgraph
-langchain-core
-langchain-text-splitters
-langchain-google-genai
-langchain-community
-python-dotenv
+# Streamlit frontend
 streamlit
-beautifulsoup4
-requests
-tavily-python
-pymupdf
-langchain-chroma
-chromadb
+# LangGraph workflow and LangChain core
+langgraph
+langgraph-checkpoint-postgres
+langchain-core
+langchain-community
+langchain-text-splitters
+# Google Gemini: LLM and embeddings
+langchain-google-genai
 
+# Qdrant Cloud vector database
 langchain-qdrant
 qdrant-client
+
+# Neon PostgreSQL database connectivity
+psycopg[binary,pool]
+
+# Tavily web search
+tavily-python
+
+# Web scraping and HTTP requests
+beautifulsoup4
+requests
+
+# PDF document processing
+pymupdf
+
+# Environment variables
+python-dotenv
