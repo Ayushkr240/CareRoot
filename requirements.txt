@@ -1,0 +1,16 @@
+langgraph
+langchain-core
+langchain-text-splitters
+langchain-google-genai
+langchain-community
+python-dotenv
+streamlit
+beautifulsoup4
+requests
+tavily-python
+pymupdf
+langchain-chroma
+chromadb
+
+langchain-qdrant
+qdrant-client

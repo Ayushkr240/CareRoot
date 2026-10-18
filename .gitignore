@@ -1,0 +1,58 @@
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ChromaDB persistent data and misc folders
+New folder/
+LS/
+chroma_db/
+testfiles/
+previous files/
+
+# Local conversation database
+convo.db
+convo.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+
+# Logs
+*.log
+logs/
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment and temporary files
+*.tmp
+*.bak
+
+# images
+
+rough workflow.JPG
+
+# md files
+memory.md
