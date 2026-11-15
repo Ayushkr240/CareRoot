@@ -28,3 +28,6 @@ pymupdf
 
 # Environment variables
 python-dotenv
+
+fastapi
+uvicorn[standard]
