@@ -113,6 +113,22 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
+def extract_clean_text(element) -> str:
+    """Extract readable text while preserving boundaries between HTML nodes."""
+
+    parts = []
+
+    for text_node in element.find_all(string=True):
+        text = str(text_node)
+
+        # Ignore empty or whitespace-only nodes.
+        if not text.strip():
+            continue
+
+        parts.append(text.strip())
+
+    return clean_paragraph(" ".join(parts))
+
 
 def clean_paragraph(text: str) -> str:
     """Normalize whitespace and remove common webpage citation markers."""
@@ -224,37 +240,35 @@ def calculate_relevance(
     title: str,
     heading: str,
 ) -> float:
-    """Score a paragraph based on matching query terms."""
+    """Score a passage using its text, title, and section heading."""
     paragraph_terms = {
         normalize_word(word)
         for word in re.findall(r"[a-zA-Z]+", paragraph.lower())
     }
-
-    if not query_terms:
-        return 0.0
-
-    matched_terms = query_terms.intersection(paragraph_terms)
-
-    # A passage must match at least one query term.
-    if not matched_terms:
-        return 0.0
-
-    score = len(matched_terms) / len(query_terms)
-
     title_terms = {
         normalize_word(word)
         for word in re.findall(r"[a-zA-Z]+", title.lower())
     }
-
     heading_terms = {
         normalize_word(word)
         for word in re.findall(r"[a-zA-Z]+", heading.lower())
     }
 
-    if query_terms.intersection(title_terms):
+    matched_terms = query_terms.intersection(paragraph_terms)
+    title_matches = query_terms.intersection(title_terms)
+    heading_matches = query_terms.intersection(heading_terms)
+
+    # A short list item can be relevant because it belongs to a matching
+    # section, even if the item itself does not repeat the query keywords.
+    if not matched_terms and not title_matches and not heading_matches:
+        return 0.0
+
+    score = len(matched_terms) / len(query_terms)
+
+    if title_matches:
         score += 0.20
 
-    if query_terms.intersection(heading_terms):
+    if heading_matches:
         score += 0.15
 
     return score
@@ -269,7 +283,7 @@ def extract_paragraph_candidates(
     query: str,
     title: str,
 ) -> list[dict]:
-    """Extract relevant paragraphs with their section headings."""
+    """Extract complete content sections, keeping introductions and lists together."""
     main = soup.find("article") or soup.find("main") or soup.body
 
     if main is None:
@@ -283,98 +297,127 @@ def extract_paragraph_candidates(
         element.decompose()
 
     query_terms = expand_query_terms(query)
-
     candidates = []
-    seen_paragraphs = set()
+    seen_sections = set()
+
     current_heading = ""
+    section_parts = []
+    section_order = 0
 
-    for element in main.find_all(
-        ["h1", "h2", "h3", "h4", "p", "li", "blockquote"]
-    ):
-        if element.name in {"h1", "h2", "h3", "h4"}:
-            current_heading = clean_paragraph(
-                element.get_text(" ", strip=True)
-            )
-            continue
+    useful_sections = (
+        "overview", "symptom", "cause", "prevention", "treatment",
+        "diagnosis", "risk factor", "when to see", "what you can do",
+    )
+    unwanted_sections = (
+        "references", "bibliography", "acknowledgments",
+        "acknowledgements", "citations", "myths and misconceptions",
+    )
 
-        # Avoid duplicate text when a list item contains paragraphs.
-        if element.name == "li" and element.find("p"):
-            continue
+    # Map common question wording to the corresponding section headings.
+    requested_sections = {
+        "symptom": ("symptom", "signs", "clinical presentation"),
+        "cause": ("cause", "why it happens"),
+        "treatment": ("treatment", "manage", "management", "therapy"),
+        "prevention": ("prevention", "prevent", "reduce the risk"),
+        "diagnosis": ("diagnosis", "diagnosed", "tests"),
+        "risk": ("risk factor", "higher risk", "more likely"),
+    }
 
-        paragraph = clean_paragraph(
-            element.get_text(" ", strip=True)
-        )
+    query_lower = query.lower()
+    requested_facets = [
+        facet
+        for facet, phrases in requested_sections.items()
+        if any(phrase in query_lower for phrase in phrases)
+    ]
 
-        if len(paragraph) < MIN_PARAGRAPH_CHARACTERS:
-            continue
+    def flush_section() -> None:
+        """Create one candidate for the current heading and all its content."""
+        nonlocal section_parts, section_order
 
-        if is_boilerplate(paragraph):
-            continue
+        if not section_parts:
+            return
 
-        paragraph_key = paragraph.casefold()
+        heading_lower = current_heading.lower()
+        if any(section in heading_lower for section in unwanted_sections):
+            section_parts = []
+            return
 
-        if paragraph_key in seen_paragraphs:
-            continue
-
-        seen_paragraphs.add(paragraph_key)
-
+        body = "\n".join(section_parts).strip()
+        if not body:
+            section_parts = []
+            return
 
         score = calculate_relevance(
-            paragraph=paragraph,
+            paragraph=body,
             query_terms=query_terms,
             title=title,
             heading=current_heading,
         )
 
-        # Prefer patient-health guidance sections.
-        heading_lower = current_heading.lower()
-
-        useful_sections = (
-            "overview",
-            "symptoms",
-            "causes",
-            "prevention",
-            "treatment",
-            "diagnosis",
-            "risk factors",
-            "when to see",
-            "what you can do",
-        )
-
-        unwanted_sections = (
-            "references",
-            "bibliography",
-            "acknowledgments",
-            "acknowledgements",
-            "citations",
-            "myths and misconceptions",
-        )
-
-        if any(section in heading_lower for section in unwanted_sections):
-            continue
-
+        # Section headings are useful context, but should not by themselves
+        # make unrelated sections relevant.
         if any(section in heading_lower for section in useful_sections):
             score += 0.30
 
+        # Explicitly prioritize sections that answer the requested facet.
+        for facet in requested_facets:
+            if any(
+                phrase in heading_lower
+                for phrase in requested_sections[facet]
+            ):
+                score += 1.25
+                break
 
-        if score <= 0:
+        if score > 0:
+            passage = body
+            if current_heading and current_heading.casefold() not in body.casefold():
+                passage = f"{current_heading}: {body}"
+
+            key = passage.casefold()
+            if key not in seen_sections:
+                seen_sections.add(key)
+                candidates.append({
+                    "text": passage,
+                    "score": score,
+                    "order": section_order,
+                    "heading": current_heading,
+                })
+                section_order += 1
+
+        section_parts = []
+
+    for element in main.find_all(
+        ["h1", "h2", "h3", "h4", "p", "li", "blockquote"]
+    ):
+        if element.name in {"h1", "h2", "h3", "h4"}:
+            flush_section()
+            current_heading = extract_clean_text(element)
             continue
 
-        # Keep the heading with the passage so its meaning remains clear.
-        if (
-            current_heading
-            and current_heading.casefold() not in paragraph.casefold()
-        ):
-            passage = f"{current_heading}: {paragraph}"
-        else:
-            passage = paragraph
+        if element.name == "li":
+            # Extract the current list item's own text. Nested list items are
+            # visited separately, preventing parent/child duplication.
+            item_copy = BeautifulSoup(str(element), "html.parser")
+            item_node = item_copy.find("li")
+            if item_node is None:
+                continue
 
-        candidates.append({
-            "text": passage,
-            "score": score,
-            "order": len(candidates),
-        })
+            for nested_list in item_node.find_all(["ul", "ol"]):
+                nested_list.decompose()
 
+            item_text = extract_clean_text(item_node)
+
+            if len(item_text) >= 8 and not is_boilerplate(item_text):
+                section_parts.append(f"• {item_text}")
+            continue
+
+        paragraph = extract_clean_text(element)
+
+        if len(paragraph) >= MIN_PARAGRAPH_CHARACTERS:
+            if not is_boilerplate(paragraph):
+                section_parts.append(paragraph)
+
+    flush_section()
     return candidates
 
 
@@ -388,7 +431,7 @@ def select_relevant_paragraphs(
     title: str,
 ) -> tuple[str, int]:
     """
-    Select at most 3 complete passages and 1,000 characters.
+    Select complete, relevant passages within the configured limits.
 
     Passages that do not fit in the remaining budget are skipped,
     not cut off mid-word or mid-sentence.
@@ -402,7 +445,7 @@ def select_relevant_paragraphs(
     if not candidates:
         return "", 0
 
-    # Rank by relevance, preferring earlier passages when scores tie.
+    # Rank complete sections by relevance, preferring earlier sections on ties.
     ranked = sorted(
         candidates,
         key=lambda item: (-item["score"], item["order"]),
