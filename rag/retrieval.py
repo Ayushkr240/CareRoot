@@ -54,7 +54,7 @@ def _build_qdrant_filter(where: Mapping[str, Any] | None) -> qdrant_models.Filte
     return qdrant_models.Filter(must=conditions)
 
 # CareRoot's approved medical-source policy. Subdomains are accepted.
-APPROVED_SOURCE_DOMAINS = ("who.int", "cdc.gov", "nih.gov", "nice.org.uk")
+APPROVED_SOURCE_DOMAINS = ("who.int", "cdc.gov", "nih.gov", "nice.org.uk", "medlineplus.gov", "fda.gov", "cancer.gov", "health.gov", "healthfinder.gov", "clinicaltrials.gov", "nhs.uk", "gov.uk", "gov.scot", "canada.ca", "phac-aspc.gc.ca", "healthlinkbc.ca", "health.gov.au", "healthdirect.gov.au", "betterhealth.vic.gov.au", "safetyandquality.gov.au", "mohfw.gov.in", "icmr.gov.in", "ncdc.mohfw.gov.in", "nhm.gov.in", "aiims.edu", "ema.europa.eu", "ecdc.europa.eu", "rki.de", "sign.ac.uk", "diabetes.org", "heart.org", "cancer.org", "aafp.org", "aap.org", "acog.org", "acc.org", "kidney.org", "cochrane.org")
 EXCLUDED_SOURCE_DOMAINS = ("pubmed.ncbi.nlm.nih.gov", "pmc.ncbi.nlm.nih.gov")
 
 _STOPWORDS = {

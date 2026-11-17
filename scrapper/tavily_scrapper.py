@@ -14,12 +14,7 @@ load_dotenv()
 # Configuration
 # --------------------------------------------------
 
-APPROVED_DOMAINS = (
-    "who.int",
-    "cdc.gov",
-    "nih.gov",
-    "nice.org.uk",
-)
+APPROVED_DOMAINS = ("who.int", "cdc.gov", "nih.gov", "nice.org.uk", "medlineplus.gov", "fda.gov", "cancer.gov", "health.gov", "healthfinder.gov", "clinicaltrials.gov", "nhs.uk", "gov.uk", "gov.scot", "canada.ca", "phac-aspc.gc.ca", "healthlinkbc.ca", "health.gov.au", "healthdirect.gov.au", "betterhealth.vic.gov.au", "safetyandquality.gov.au", "mohfw.gov.in", "icmr.gov.in", "ncdc.mohfw.gov.in", "nhm.gov.in", "aiims.edu", "ema.europa.eu", "ecdc.europa.eu", "rki.de", "sign.ac.uk", "diabetes.org", "heart.org", "cancer.org", "aafp.org", "aap.org", "acog.org", "acc.org", "kidney.org", "cochrane.org")
 
 # Exclude research-publication hosts from this initial
 # patient-health guidance collection.
